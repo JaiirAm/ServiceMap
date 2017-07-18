@@ -1,0 +1,101 @@
+#!/bin/bash
+echo "*************************************************"
+echo "*************************************************"
+echo "*****************            ********************"
+echo "*****************            ********************"
+echo "***************                ******************"
+echo "***************                ******************"
+echo "************                     ****************"
+echo "**********Welcome to servicemap tool*************"
+echo "************                     ****************"
+echo "***************                ******************"
+echo "***************                ******************"
+echo "*****************Version alpha*******************"
+echo "*****************  By jai    ********************"
+echo "*************************************************"
+echo "********************************************"
+echo "****************************************"
+echo "************************************"
+echo "********************************"
+echo "****************************"
+echo "************************"
+echo "********************"
+# adding a name to the project/dir to save files for the project
+read -p 'select a name for your project: ' projectname
+mkdir /root/Desktop/$projectname
+dir=$(pwd)
+#choosing lan based scanning or list based scanning 
+echo -e "Type 1 if you need to scan the ips on your network\nType 2 if you want to supply a list of ips to get it scanned\n"
+read -p 'input your choice: ' usrdata
+if [ $usrdata -eq 1 ]  
+then
+	sys=$(ip -f inet -o addr show eth0|cut -d\  -f 7 | cut -d/ -f 1)
+#asking to enter subnet
+	read -p "enter the subnet to be scanned: " subnet
+	if [ $subnet -eq 24 ] || [ $subnet -eq 16 ] || [ $subnet -eq 8 ]
+	then
+		echo "you had choosed "$sys"/"$subnet" to discover the active targets"
+#discovering the targets
+		echo 'Find below the list of active targets in your LAN'
+		IPs=$(sudo arp-scan --localnet --numeric --quiet --ignoredups | grep -E '([a-f0-9]{2}:){5}[a-f0-9]{2}' | awk '{print $1}')
+#iterating to get the ips in list to supply to nmap
+		list=$(echo $IPs | tr " " "\n")
+		for addr in $list
+		do
+			echo $addr | grep -wvE "192.168.197.1|192.168.197.254|192.168.197.2" >/dev/null >> $dir/$projectname/activetargets.txt
+		done
+#to find there is a active targets or not
+		if [ -s $dir/$projectname/activetargets.txt ]
+		then
+			cat $dir/$projectname/activetargets.txt
+			while read line
+			do
+#firing a nmap scan and giving a active and down host details
+				echo "starting scanning for the active targets in your LAN"
+				mkdir $dir/$projectname/$line 
+				nmap -sV $line -oA $dir/$projectname/$line/"$line"_nmap_PingScan
+    				cat $dir/$projectname/$line/"$line"_nmap_PingScan.nmap|grep "open" | grep "tcp\|udp" | cut -d ' ' -f1 >>$dir/$projectname/$line/open_ports.txt
+  				cat $dir/$projectname/$line/"$line"_nmap_PingScan.nmap|grep "closed" | grep "tcp\|udp"  | cut -d ' ' -f1 >>$dir/$projectname/$line/closed_ports.txt
+  				cat $dir/$projectname/$line/"$line"_nmap_PingScan.nmap|grep "filtered" | grep "tcp\|udp"  | cut -d ' ' -f1 >>$dir/$projectname/$line/filtered_ports.txt 
+				echo "Servicemap completed,please find the outputs in $dir/$projectname folder "
+			done <$dir/$projectname/activetargets.txt
+			exit 0
+#if there is no active targets listed in the file
+		else
+			echo "There is no active targets in your network"
+			exit 1
+		fi
+	else
+		echo "please provide a valid subnet value"
+		exit 1
+	fi 
+elif [ $usrdata -eq 2 ]
+then
+#asking the user to supply the target list file
+	echo "supply the target list you have :"
+	read filepath
+		if [ -s $filepath ]
+		then
+#firing a nmap scan
+			cat $filepath >> /dev/null
+			while read line
+			do
+				echo "starting scanning for the supplied targets"
+				mkdir $dir/$projectname/$line
+				nmap -sV $line -oA $dir/$projectname/$line/"$line"_nmap_PingScan
+    				cat $dir/$projectname/$line/"$line"_nmap_PingScan.nmap|grep "open" | grep "tcp\|udp" | cut -d ' ' -f1 >>$dir/$projectname/$line/open_ports.txt
+				cat $dir/$projectname/$line/"$line"_nmap_PingScan.nmap|grep "closed" | grep "tcp\|udp" | cut -d ' ' -f1 >>$dir/$projectname/$line/closed_ports.txt
+				cat $dir/$projectname/$line/"$line"_nmap_PingScan.nmap|grep "filtered" | grep "tcp\|udp" | cut -d ' ' -f1 >>$dir/$projectname/$line/filtered_ports.txt
+				echo "Servicemap completed,please find the outputs in $dir/$projectname folder "
+			done <$filepath
+			fi
+			exit 0
+		else
+			echo "The supplied file is empty"
+			exit 1
+		fi
+else
+	echo "Please supply a valid input"
+	exit 1
+fi
+exit 0
