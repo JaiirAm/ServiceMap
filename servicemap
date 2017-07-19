@@ -7,7 +7,7 @@
 #The outputs of each active targets are saved under the master directory. 
 
 ##############################################################################################################################################
-#
+#copy the code and make it a executable .sh file and run the .sh file
 #Choose a projectname
 #select a input either 1 or 2
 #   * 1-> to run  a nmap scan on the activetargets in the same network
